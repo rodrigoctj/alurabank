@@ -28,12 +28,31 @@ System.register(["./../models/index", "../views/index", "../helpers/decorators/i
                     this._mensagemView = new index_2.MensagemView('#mensagemView');
                     this._negociacaoView.update(this._negociacoes);
                 }
-                adiciona(event) {
-                    event.preventDefault();
+                adiciona() {
                     const negociacao = new index_1.Negociacao(new Date(this._inputData.val().replace(/-/g, ',')), parseInt(this._inputQuantidade.val()), parseFloat(this._inputValor.val()));
                     this._negociacoes.adiciona(negociacao);
                     this._negociacaoView.update(this._negociacoes);
                     this._mensagemView.update('Negociação incluída com sucesso!');
+                }
+                importarDados() {
+                    function isOK(res) {
+                        if (res.ok) {
+                            return res;
+                        }
+                        else {
+                            throw new Error(res.statusText);
+                        }
+                    }
+                    fetch('http://localhost:8080/dados')
+                        .then(res => isOK(res))
+                        .then(res => res.json())
+                        .then((dados) => {
+                        dados
+                            .map(dado => new index_1.Negociacao(new Date(), dado.vezes, dado.montante))
+                            .forEach(negociacao => this._negociacoes.adiciona(negociacao));
+                        this._negociacaoView.update(this._negociacoes);
+                    })
+                        .catch(err => console.log(err.message));
                 }
             };
             __decorate([
@@ -46,8 +65,12 @@ System.register(["./../models/index", "../views/index", "../helpers/decorators/i
                 index_3.domInject('#valor')
             ], NegociacaoController.prototype, "_inputValor", void 0);
             __decorate([
+                index_3.throttle(),
                 index_3.logarTempoExecucao(true)
             ], NegociacaoController.prototype, "adiciona", null);
+            __decorate([
+                index_3.throttle()
+            ], NegociacaoController.prototype, "importarDados", null);
             exports_1("NegociacaoController", NegociacaoController);
         }
     };
