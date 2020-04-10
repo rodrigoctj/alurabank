@@ -1,7 +1,8 @@
 import { Negociacao, Negociacoes, NegociacaoParcial } from './../models/index';
 import { NegociacoesView, MensagemView } from '../views/index';
 import { logarTempoExecucao, domInject, throttle } from '../helpers/decorators/index';
-
+import { NegociacaoService } from '../serivces/index';
+import { imprime } from '../helpers/Utils';
 export class NegociacaoController {
 
   @domInject('#quantidade')
@@ -15,6 +16,8 @@ export class NegociacaoController {
   private _negociacoes = new Negociacoes();
   private _negociacaoView = new NegociacoesView('#negociacoesView');
   private _mensagemView = new MensagemView('#mensagemView');
+
+  private _service = new NegociacaoService();
 
   constructor() {
     this._negociacaoView.update(this._negociacoes);
@@ -33,33 +36,35 @@ export class NegociacaoController {
     this._negociacoes.adiciona(negociacao);
     this._negociacaoView.update(this._negociacoes);
     this._mensagemView.update('Negociação incluída com sucesso!');
+
+    imprime(negociacao, this._negociacoes);
   }
 
   @throttle()
-  importarDados() {
+  async importarDados() {
 
-    function isOK(res: Response) {
-      if (res.ok) {
-        return res;
-      } else {
-        throw new Error(res.statusText);
-      }
+    try {
+      const negociacoesParaImportar = await this._service
+        .obterNegociacoes(res => {
+          if (res.ok) {
+            return res;
+          } else {
+            throw new Error(res.statusText);
+          }
+        });
 
+      const negociacoesJaImportadas = this._negociacoes.paraArray();
+
+      negociacoesParaImportar
+        .filter(negociacao => !negociacoesJaImportadas
+          .some(jaImportada => negociacao.ehIgual(jaImportada)))
+        .forEach(negociacao =>
+          this._negociacoes.adiciona(negociacao));
+      this._negociacaoView.update(this._negociacoes);
+
+    } catch (err) {
+      this._mensagemView.update(err.message);
     }
-
-    fetch('http://localhost:8080/dados')
-      .then(res => isOK(res))
-      .then(res => res.json())
-      .then((dados: NegociacaoParcial[]) => {
-        dados
-          .map(dado => new Negociacao(new Date(), dado.vezes, dado.montante))
-          .forEach(negociacao => this._negociacoes.adiciona(negociacao));
-
-        this._negociacaoView.update(this._negociacoes);
-      })
-      .catch(err => console.log(err.message));
-
-
 
   }
 
